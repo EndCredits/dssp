@@ -34,7 +34,6 @@ include(CheckFunctionExists)
 include(CheckIncludeFiles)
 include(CheckLibraryExists)
 include(CMakePackageConfigHelpers)
-include(Dart)
 include(FindFilesystem)
 include(GenerateExportHeader)
 
@@ -104,32 +103,13 @@ if(UNIX AND NOT APPLE)
 	endif()
 endif()
 
-# Configure static linking
-if(NOT DEFINED CMAKE_FIND_LIBRARY_SUFFIXES)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-endif()
-
-# Exclude shared libraries when linking
-set(CMAKE_EXE_LINK_DYNAMIC_C_FLAGS "")
-set(CMAKE_EXE_LINK_DYNAMIC_CXX_FLAGS "")
-
-# Link statically on all systems
+# Configure static linking for non-Apple platforms
 if(WIN32)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-else()
-    if(APPLE)
-        # On macOS, prefer static linking where possible
-        # Note: Full static linking on macOS is limited, using flags for stdlib
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    else()
-        # On Linux and other Unix systems, enable static linking
-        set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
-    endif()
+elseif(NOT APPLE)
+    # On Linux and other Unix systems, set linker flags for static linking
+    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 endif()
-
-# For static linking of external libraries, we need to set link type property
-set_target_properties(mkdssp PROPERTIES LINK_SEARCH_START_STATIC 1)
-set_target_properties(mkdssp PROPERTIES LINK_SEARCH_END_STATIC 1)
 
 # Create a revision file, containing the current git version info
 
@@ -197,6 +177,12 @@ add_executable(mkdssp
 target_include_directories(mkdssp PRIVATE cifpp::cifpp ${CMAKE_SOURCE_DIR}/include ${cifpp_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${CMAKE_BINARY_DIR})
 target_link_libraries(mkdssp PRIVATE cifpp::cifpp Boost::date_time Boost::iostreams ZLIB::ZLIB Threads::Threads)
 
+# Apply static linking properties after target definition for Linux
+if(UNIX AND NOT APPLE)
+    set_target_properties(mkdssp PROPERTIES LINK_SEARCH_START_STATIC ON)
+    set_target_properties(mkdssp PROPERTIES LINK_SEARCH_END_STATIC ON)
+endif()
+
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION ${BIN_INSTALL_DIR}
 )
@@ -223,6 +209,12 @@ target_include_directories(unit-test PRIVATE
 )
 
 target_link_libraries(unit-test Threads::Threads cifpp::cifpp Boost::date_time Boost::iostreams ZLIB::ZLIB)
+
+# Apply static linking properties after target definition for Linux
+if(UNIX AND NOT APPLE)
+    set_target_properties(unit-test PROPERTIES LINK_SEARCH_START_STATIC ON)
+    set_target_properties(unit-test PROPERTIES LINK_SEARCH_END_STATIC ON)
+endif()
 
 if(MSVC)
 	# Specify unwind semantics so that MSVC knowns how to handle exceptions
