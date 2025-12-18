@@ -104,6 +104,33 @@ if(UNIX AND NOT APPLE)
 	endif()
 endif()
 
+# Configure static linking
+if(NOT DEFINED CMAKE_FIND_LIBRARY_SUFFIXES)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif()
+
+# Exclude shared libraries when linking
+set(CMAKE_EXE_LINK_DYNAMIC_C_FLAGS "")
+set(CMAKE_EXE_LINK_DYNAMIC_CXX_FLAGS "")
+
+# Link statically on all systems
+if(WIN32)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+else()
+    if(APPLE)
+        # On macOS, prefer static linking where possible
+        # Note: Full static linking on macOS is limited, using flags for stdlib
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+    else()
+        # On Linux and other Unix systems, enable static linking
+        set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+    endif()
+endif()
+
+# For static linking of external libraries, we need to set link type property
+set_target_properties(mkdssp PROPERTIES LINK_SEARCH_START_STATIC 1)
+set_target_properties(mkdssp PROPERTIES LINK_SEARCH_END_STATIC 1)
+
 # Create a revision file, containing the current git version info
 
 find_package(Git)
@@ -150,7 +177,8 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 find_package(cifpp 2.0.0 REQUIRED)
-find_package(Boost COMPONENTS date_time)
+find_package(Boost COMPONENTS date_time iostreams)
+find_package(ZLIB REQUIRED)
 
 if(USE_RSRC)
 	add_custom_command(OUTPUT mkdssp_rsrc.obj
@@ -167,7 +195,7 @@ add_executable(mkdssp
 	${DSSP_RESOURCE})
 
 target_include_directories(mkdssp PRIVATE cifpp::cifpp ${CMAKE_SOURCE_DIR}/include ${cifpp_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${CMAKE_BINARY_DIR})
-target_link_libraries(mkdssp PRIVATE cifpp::cifpp Boost::date_time ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(mkdssp PRIVATE cifpp::cifpp Boost::date_time Boost::iostreams ZLIB::ZLIB Threads::Threads)
 
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION ${BIN_INSTALL_DIR}
@@ -194,7 +222,7 @@ target_include_directories(unit-test PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(unit-test Threads::Threads cifpp::cifpp Boost::date_time)
+target_link_libraries(unit-test Threads::Threads cifpp::cifpp Boost::date_time Boost::iostreams ZLIB::ZLIB)
 
 if(MSVC)
 	# Specify unwind semantics so that MSVC knowns how to handle exceptions
