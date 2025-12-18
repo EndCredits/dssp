@@ -108,7 +108,7 @@ if(WIN32)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 elseif(NOT APPLE)
     # On Linux and other Unix systems, set linker flags for static linking
-    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+    set(CMAKE_EXE_LINKER_FLAGS "-static")
 endif()
 
 # Create a revision file, containing the current git version info
@@ -177,10 +177,9 @@ add_executable(mkdssp
 target_include_directories(mkdssp PRIVATE cifpp::cifpp ${CMAKE_SOURCE_DIR}/include ${cifpp_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${CMAKE_BINARY_DIR})
 target_link_libraries(mkdssp PRIVATE cifpp::cifpp Boost::date_time Boost::iostreams Boost::program_options ZLIB::ZLIB Threads::Threads)
 
-# Apply static linking properties after target definition for Linux
+# Apply static linking options after target definition for Linux
 if(UNIX AND NOT APPLE)
-    set_target_properties(mkdssp PROPERTIES LINK_SEARCH_START_STATIC ON)
-    set_target_properties(mkdssp PROPERTIES LINK_SEARCH_END_STATIC ON)
+    target_link_options(mkdssp PRIVATE -static)
 endif()
 
 install(TARGETS ${PROJECT_NAME}
@@ -210,10 +209,9 @@ target_include_directories(unit-test PRIVATE
 
 target_link_libraries(unit-test Threads::Threads cifpp::cifpp Boost::date_time Boost::iostreams Boost::program_options ZLIB::ZLIB)
 
-# Apply static linking properties after target definition for Linux
+# Apply static linking options after target definition for Linux
 if(UNIX AND NOT APPLE)
-    set_target_properties(unit-test PROPERTIES LINK_SEARCH_START_STATIC ON)
-    set_target_properties(unit-test PROPERTIES LINK_SEARCH_END_STATIC ON)
+    target_link_options(unit-test PRIVATE -static)
 endif()
 
 if(MSVC)
